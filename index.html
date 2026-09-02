@@ -212,6 +212,18 @@ function render(){
         ${gauge(hero)}
       </div>` : `<div class="empty">${esc(s.plays_empty || "No plays published.")}</div>`}
 
+    ${(s.pool && s.pool.length) ? `<h2>Pool picks · every game is a required pick</h2>
+      <div>${s.pool.map((g,i) => `
+        <div class="row">
+          <div class="body">
+            <div class="p">${esc(g.model_pick || "\u2014")}</div>
+            <div class="m">${esc(g.game)}${g.confidence ? ` · ${esc(g.confidence)}` : ""}${i < 3 ? ` · <span class="flagged">best pick</span>` : ""}${g.line_delta ? ` · contest line worth ${num(g.line_delta, true)}` : ""}</div>
+            <div class="m">${g.my_pick ? `yours: ${esc(g.my_pick)}` : "yours: not entered"}</div>
+          </div>
+          <div class="e">${g.result ? verdict(g.result) : (g.edge == null ? "" : `${num(g.edge)}<small>edge</small>`)}</div>
+        </div>`).join("")}</div>`
+      : `<h2>Pool picks</h2><div class="empty">${esc(s.pool_empty || "No pool games loaded.")}</div>`}
+
     ${rest.length ? `<h2>Rest of the board</h2>
       <div>${rest.map((p,i) => `
         <div class="row">
@@ -222,17 +234,6 @@ function render(){
           </div>
           <div class="e">${num(Math.abs(p.edge))}<small>edge</small></div>
         </div>`).join("")}</div>` : ""}
-
-    ${(s.pool && s.pool.length) ? `<h2>Pool picks</h2>
-      <div>${s.pool.map(g => `
-        <div class="row">
-          <div class="body">
-            <div class="p">${esc(g.game)}</div>
-            <div class="m">model ${esc(g.model_pick || "—")}${g.my_pick ? ` · yours ${esc(g.my_pick)}` : " · yours not entered"}${g.line_delta ? ` · contest line ${num(g.line_delta, true)}` : ""}</div>
-          </div>
-          <div class="e">${verdict(g.result)}</div>
-        </div>`).join("")}</div>`
-      : `<h2>Pool picks</h2><div class="empty">${esc(s.pool_empty || "No pool games loaded.")}</div>`}
 
     ${(s.graded && s.graded.length) ? `<h2>Graded</h2>
       <div>${s.graded.map(g => `
