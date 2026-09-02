@@ -1,0 +1,291 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ground:#E9EDF0;
+    --panel:#F7F9FA;
+    --ink:#14213A;
+    --ink-soft:#5A6A80;
+    --rule:#C4CDD6;
+    --cover:#1F6F5C;
+    --miss:#A8332A;
+    --pending:#B07B22;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:'Instrument Sans',ui-sans-serif,system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum" 1;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:18px 16px 56px;}
+
+  /* header */
+  .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+  .name{font-size:15px;font-weight:700;letter-spacing:-0.01em;}
+  .stamp{font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.35;}
+  .stamp button{
+    font:inherit;font-size:12px;color:var(--ink);background:none;border:0;padding:2px 0 0;
+    border-bottom:1px solid var(--rule);cursor:pointer;
+  }
+  .stamp button:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+
+  /* sport switch */
+  .tabs{display:flex;gap:0;margin:16px 0 0;border-bottom:1px solid var(--rule);}
+  .tabs button{
+    font:inherit;font-size:14px;font-weight:600;color:var(--ink-soft);
+    background:none;border:0;border-bottom:2px solid transparent;
+    padding:8px 0;margin-right:22px;cursor:pointer;
+  }
+  .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink);}
+  .tabs button:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+
+  h2{
+    font-size:13px;font-weight:600;color:var(--ink-soft);
+    margin:30px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--rule);
+  }
+
+  /* hero play */
+  .hero{padding:18px 0 4px;}
+  .hero .rank{font-size:12px;color:var(--ink-soft);}
+  .hero .pick{font-size:30px;font-weight:700;letter-spacing:-0.02em;line-height:1.06;margin:6px 0 2px;}
+  .hero .matchup{font-size:14px;color:var(--ink-soft);}
+
+  /* edge gauge */
+  .gauge{margin:14px 0 2px;}
+  .track{position:relative;height:26px;border-bottom:1px solid var(--rule);}
+  .mark{position:absolute;top:0;bottom:0;width:1px;background:var(--ink);opacity:.85;}
+  .bar{position:absolute;top:8px;height:10px;background:var(--ink);
+       transform-origin:left center;transition:transform .5s ease;}
+  .bar.back{background:var(--cover);}
+  .bar.fade{background:var(--miss);}
+  .scale{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);padding-top:5px;}
+  .readout{display:flex;gap:20px;font-size:13px;margin-top:8px;flex-wrap:wrap;}
+  .readout span b{font-weight:600;}
+  .readout span{color:var(--ink-soft);}
+  .readout b{color:var(--ink);}
+
+  /* play rows */
+  .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);}
+  .row:last-child{border-bottom:0;}
+  .row .n{font-size:12px;color:var(--ink-soft);width:16px;flex:none;}
+  .row .body{flex:1;min-width:0;}
+  .row .p{font-size:15px;font-weight:600;line-height:1.2;}
+  .row .m{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .row .e{font-size:15px;font-weight:700;flex:none;text-align:right;}
+  .row .e small{display:block;font-size:10px;font-weight:500;color:var(--ink-soft);}
+  .flagged{color:var(--pending);}
+
+  /* verdicts */
+  .v{font-size:12px;font-weight:600;}
+  .v.cover{color:var(--cover);}
+  .v.miss{color:var(--miss);}
+  .v.push,.v.open{color:var(--ink-soft);}
+
+  /* ledger */
+  .ledger{background:var(--panel);border:1px solid var(--rule);padding:14px 16px;margin-top:8px;}
+  .ledger dl{display:grid;grid-template-columns:1fr auto;gap:7px 12px;margin:0;font-size:13px;}
+  .ledger dt{color:var(--ink-soft);}
+  .ledger dd{margin:0;font-weight:600;text-align:right;}
+  .note{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:10px;}
+
+  .empty{font-size:14px;line-height:1.5;color:var(--ink-soft);padding:14px 0;}
+  .err{font-size:13px;color:var(--miss);line-height:1.5;padding:14px 0;}
+
+  @media (prefers-reduced-motion:reduce){.bar{transition:none;}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="name">Football pool model</div>
+    <div class="stamp">
+      <div id="stamp">loading feed</div>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div id="panel"></div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   Data feed. Override at view time with ?src=<url to dashboard.json>
+   so the published link never has to be re-published.
+------------------------------------------------------------------ */
+const DEFAULT_SRC = "";           // paste the gist raw URL here once it exists
+const qs = new URLSearchParams(location.search);
+const SRC = qs.get("src") || DEFAULT_SRC;
+
+/* Seed data — what is known as of the 2026-09-01 handoff. Shown when no
+   feed is reachable, so the page is never blank. */
+const SEED = {
+  generated_at: "2026-09-01T12:00:00-04:00",
+  source: "seed",
+  sports: [
+    {
+      id:"cfb", label:"College", week:1,
+      threshold:2.0, blowout_filter:24,
+      leg_a:{name:"SP+", weight:0.65}, leg_b:{name:"Game On Paper", weight:0.35},
+      record:{w:3,l:0,p:0}, record_note:"Week 0, games clearing the threshold",
+      mae:12.19, mae_leg1:null, mae_leg2:null, both_leg_games:0, qualifying:20,
+      plays:[],
+      plays_empty:"Week 1 snapshot runs Thursday at 1:00 PM. Twenty games clear the 2.0-point edge; the ranked list publishes with the snapshot.",
+      graded:[
+        {pick:"North Carolina +7.5", matchup:"at TCU, week 0", result:"cover"},
+        {pick:"San José State +38.5", matchup:"at USC, week 0", result:"cover"},
+        {pick:"New Mexico State +30.5", matchup:"at Florida State, week 0", result:"cover"}
+      ],
+      pool:[],
+      pool_empty:"23 Week 1 games loaded on the contest lines. Your picks are not entered yet. The contest line beats the market on Fresno State at USC and Marshall at Penn State, and costs a point on Miami at Stanford and North Texas at Indiana."
+    },
+    {
+      id:"nfl", label:"NFL", week:1,
+      threshold:1.5,
+      leg_a:{name:"FPI", weight:0.65}, leg_b:{name:"rbsdm", weight:0.35},
+      record:{w:0,l:0,p:0}, record_note:"Season opens Sept 9",
+      mae:null, mae_leg1:null, mae_leg2:null, both_leg_games:0, qualifying:0,
+      plays:[],
+      plays_empty:"Season opens Wednesday, Sept 9. The Week 1 snapshot runs that afternoon at 5:00 PM.",
+      graded:[], pool:[], pool_empty:"No pool games loaded."
+    }
+  ]
+};
+
+let data = SEED, active = 0;
+
+const num = (n, plus) => n == null ? "—" : (plus && n > 0 ? "+" : "") + (Math.round(n*10)/10).toFixed(1);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const verdict = r => {
+  const k = (r || "open").toLowerCase();
+  const word = {cover:"Cover", win:"Cover", miss:"Miss", loss:"Miss", push:"Push", open:"Open"}[k] || esc(r);
+  return `<span class="v ${k === "win" ? "cover" : k === "loss" ? "miss" : k}">${word}</span>`;
+};
+
+function gauge(p){
+  const span = Math.max(6, Math.abs(p.edge) * 1.6);
+  const pct = v => ((v + span) / (span*2)) * 100;
+  const left = Math.min(pct(0), pct(p.edge)), width = Math.abs(pct(p.edge) - pct(0));
+  const dir = p.edge > 0 ? "back" : "fade";
+  return `
+  <div class="gauge">
+    <div class="track">
+      <div class="mark" style="left:${pct(0)}%"></div>
+      <div class="bar ${dir}" style="left:${left}%;width:${width}%;transform:scaleX(0)"></div>
+    </div>
+    <div class="scale"><span>market ${num(p.market, true)}</span><span>model ${num(p.model, true)}</span></div>
+    <div class="readout">
+      <span>Edge <b>${num(Math.abs(p.edge))}</b></span>
+      ${p.kick ? `<span>Kick <b>${esc(p.kick)}</b></span>` : ""}
+      ${p.public ? `<span>Public <b>${esc(p.public)}</b></span>` : ""}
+    </div>
+  </div>`;
+}
+
+function render(){
+  const s = data.sports[active];
+
+  document.getElementById("tabs").innerHTML = data.sports.map((x,i) =>
+    `<button role="tab" aria-selected="${i===active}" data-i="${i}">${esc(x.label)}</button>`).join("");
+
+  const stamp = data.generated_at ? new Date(data.generated_at) : null;
+  document.getElementById("stamp").textContent =
+    (data.source === "seed" ? "no published run yet · " : "run ") +
+    (stamp ? stamp.toLocaleString([], {weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit"}) : "unknown");
+
+  const plays = s.plays || [];
+  const hero = plays[0];
+  const rest = plays.slice(1);
+
+  const html = `
+    ${hero ? `
+      <div class="hero">
+        <div class="rank">Top play · week ${esc(s.week)}${s.qualifying ? ` · ${s.qualifying} games clear the threshold` : ""}</div>
+        <div class="pick">${esc(hero.pick)}</div>
+        <div class="matchup">${esc(hero.matchup)}</div>
+        ${gauge(hero)}
+      </div>` : `<div class="empty">${esc(s.plays_empty || "No plays published.")}</div>`}
+
+    ${rest.length ? `<h2>Rest of the board</h2>
+      <div>${rest.map((p,i) => `
+        <div class="row">
+          <div class="n">${i+2}</div>
+          <div class="body">
+            <div class="p">${esc(p.pick)}</div>
+            <div class="m">${esc(p.matchup)} · market ${num(p.market, true)} · model ${num(p.model, true)}${p.flag ? ` · <span class="flagged">${esc(p.flag)}</span>` : ""}</div>
+          </div>
+          <div class="e">${num(Math.abs(p.edge))}<small>edge</small></div>
+        </div>`).join("")}</div>` : ""}
+
+    ${(s.pool && s.pool.length) ? `<h2>Pool picks</h2>
+      <div>${s.pool.map(g => `
+        <div class="row">
+          <div class="body">
+            <div class="p">${esc(g.game)}</div>
+            <div class="m">model ${esc(g.model_pick || "—")}${g.my_pick ? ` · yours ${esc(g.my_pick)}` : " · yours not entered"}${g.line_delta ? ` · contest line ${num(g.line_delta, true)}` : ""}</div>
+          </div>
+          <div class="e">${verdict(g.result)}</div>
+        </div>`).join("")}</div>`
+      : `<h2>Pool picks</h2><div class="empty">${esc(s.pool_empty || "No pool games loaded.")}</div>`}
+
+    ${(s.graded && s.graded.length) ? `<h2>Graded</h2>
+      <div>${s.graded.map(g => `
+        <div class="row">
+          <div class="body">
+            <div class="p">${esc(g.pick)}</div>
+            <div class="m">${esc(g.matchup)}</div>
+          </div>
+          <div class="e">${verdict(g.result)}</div>
+        </div>`).join("")}</div>` : ""}
+
+    <h2>Where the model stands</h2>
+    <div class="ledger">
+      <dl>
+        <dt>ATS record${s.record_note ? ` · ${esc(s.record_note)}` : ""}</dt>
+        <dd>${s.record.w}–${s.record.l}${s.record.p ? `–${s.record.p}` : ""}</dd>
+        <dt>Blended margin error</dt><dd>${s.mae == null ? "—" : num(s.mae) + " pts"}</dd>
+        <dt>${esc(s.leg_a.name)} margin error</dt><dd>${s.mae_leg1 == null ? "—" : num(s.mae_leg1) + " pts"}</dd>
+        <dt>${esc(s.leg_b.name)} margin error</dt><dd>${s.mae_leg2 == null ? "—" : num(s.mae_leg2) + " pts"}</dd>
+        <dt>${esc(s.leg_a.name)} weight</dt><dd>${Math.round(s.leg_a.weight*100)}%</dd>
+        <dt>${esc(s.leg_b.name)} weight</dt><dd>${Math.round(s.leg_b.weight*100)}%</dd>
+        <dt>Games with both legs rated</dt><dd>${s.both_leg_games}</dd>
+        <dt>Edge threshold</dt><dd>${num(s.threshold)} pts</dd>
+        ${s.blowout_filter ? `<dt>Blowout filter</dt><dd>${num(s.blowout_filter)} pts</dd>` : ""}
+      </dl>
+      ${s.both_leg_games === 0 ? `<div class="note">No game yet has both rating legs, so there is no honest weight suggestion. The lever stays where it is.</div>` : ""}
+    </div>
+    <div id="err"></div>`;
+
+  document.getElementById("panel").innerHTML = html;
+  requestAnimationFrame(() => document.querySelectorAll(".bar").forEach(b => b.style.transform = "scaleX(1)"));
+}
+
+async function load(){
+  if(!SRC){ render(); return; }
+  try{
+    const r = await fetch(SRC + (SRC.includes("?") ? "&" : "?") + "_cb=" + Date.now(), {cache:"no-store"});
+    if(!r.ok) throw new Error("feed returned " + r.status);
+    const j = await r.json();
+    if(!j.sports || !j.sports.length) throw new Error("feed has no sports");
+    data = j; render();
+  }catch(e){
+    render();
+    const box = document.getElementById("err");
+    if(box) box.innerHTML = `<div class="err">Showing the last known state. The feed at that address did not load (${esc(e.message)}). Check that the run finished and pushed dashboard.json.</div>`;
+  }
+}
+
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]");
+  if(b){ active = +b.dataset.i; render(); }
+});
+document.getElementById("refresh").addEventListener("click", load);
+document.addEventListener("visibilitychange", () => { if(!document.hidden) load(); });
+load();
+</script>
