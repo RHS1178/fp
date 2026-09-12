@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,6 +71,9 @@
   .readout span b{font-weight:600;}
   .readout span{color:var(--ink-soft);}
   .readout b{color:var(--ink);}
+  .readout .split{color:var(--pending);font-weight:600;}
+  .m.pub{margin-top:2px;}
+  .m.pub .split{color:var(--pending);font-weight:600;}
 
   /* play rows */
   .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);}
@@ -168,6 +172,30 @@ const verdict = r => {
   return `<span class="v ${k === "win" ? "cover" : k === "loss" ? "miss" : k}">${word}</span>`;
 };
 
+// Tickets count bet slips, money counts dollars. When they name different sides the
+// dollars are moving against the crowd, which is the signal worth seeing -- so both
+// are listed rather than one with a footnote. Falls back to the old single string
+// if the feed predates the split fields.
+function publicReadout(p){
+  if(!p.public_tickets && !p.public_money)
+    return p.public ? `<span>Public <b>${esc(p.public)}</b></span>` : "";
+  const out = [];
+  if(p.public_tickets) out.push(`<span>Tickets <b>${esc(p.public_tickets)}</b></span>`);
+  if(p.public_money)   out.push(`<span>Money <b>${esc(p.public_money)}</b></span>`);
+  if(p.public_split)   out.push(`<span class="split">split${p.public_gap!=null?` ${p.public_gap} pts`:""}</span>`);
+  return out.join("");
+}
+
+// Compact form of the same two sides for the listed plays.
+function publicLine(p){
+  if(!p.public_tickets && !p.public_money) return "";
+  const bits = [];
+  if(p.public_tickets) bits.push(`tickets ${esc(p.public_tickets)}`);
+  if(p.public_money)   bits.push(`money ${esc(p.public_money)}`);
+  const s = p.public_split ? ` <span class="split">split${p.public_gap!=null?` ${p.public_gap}`:""}</span>` : "";
+  return `<div class="m pub">${bits.join(" \u00b7 ")}${s}</div>`;
+}
+
 function gauge(p){
   const span = Math.max(6, Math.abs(p.edge) * 1.6);
   const pct = v => ((v + span) / (span*2)) * 100;
@@ -183,7 +211,7 @@ function gauge(p){
     <div class="readout">
       <span>Edge <b>${num(Math.abs(p.edge))}</b></span>
       ${p.kick ? `<span>Kick <b>${esc(p.kick)}</b></span>` : ""}
-      ${p.public ? `<span>Public <b>${esc(p.public)}</b></span>` : ""}
+      ${publicReadout(p)}
     </div>
   </div>`;
 }
@@ -212,18 +240,6 @@ function render(){
         ${gauge(hero)}
       </div>` : `<div class="empty">${esc(s.plays_empty || "No plays published.")}</div>`}
 
-    ${(s.pool && s.pool.length) ? `<h2>Pool picks · every game is a required pick</h2>
-      <div>${s.pool.map((g,i) => `
-        <div class="row">
-          <div class="body">
-            <div class="p">${esc(g.model_pick || "\u2014")}</div>
-            <div class="m">${esc(g.game)}${g.confidence ? ` · ${esc(g.confidence)}` : ""}${i < 3 ? ` · <span class="flagged">best pick</span>` : ""}${g.line_delta ? ` · contest line worth ${num(g.line_delta, true)}` : ""}</div>
-            <div class="m">${g.my_pick ? `yours: ${esc(g.my_pick)}` : "yours: not entered"}</div>
-          </div>
-          <div class="e">${g.result ? verdict(g.result) : (g.edge == null ? "" : `${num(g.edge)}<small>edge</small>`)}</div>
-        </div>`).join("")}</div>`
-      : `<h2>Pool picks</h2><div class="empty">${esc(s.pool_empty || "No pool games loaded.")}</div>`}
-
     ${rest.length ? `<h2>Rest of the board</h2>
       <div>${rest.map((p,i) => `
         <div class="row">
@@ -231,9 +247,21 @@ function render(){
           <div class="body">
             <div class="p">${esc(p.pick)}</div>
             <div class="m">${esc(p.matchup)} · market ${num(p.market, true)} · model ${num(p.model, true)}${p.flag ? ` · <span class="flagged">${esc(p.flag)}</span>` : ""}</div>
+            ${publicLine(p)}
           </div>
           <div class="e">${num(Math.abs(p.edge))}<small>edge</small></div>
         </div>`).join("")}</div>` : ""}
+
+    ${(s.pool && s.pool.length) ? `<h2>Pool picks</h2>
+      <div>${s.pool.map(g => `
+        <div class="row">
+          <div class="body">
+            <div class="p">${esc(g.game)}</div>
+            <div class="m">model ${esc(g.model_pick || "—")}${g.my_pick ? ` · yours ${esc(g.my_pick)}` : " · yours not entered"}${g.line_delta ? ` · contest line ${num(g.line_delta, true)}` : ""}</div>
+          </div>
+          <div class="e">${verdict(g.result)}</div>
+        </div>`).join("")}</div>`
+      : `<h2>Pool picks</h2><div class="empty">${esc(s.pool_empty || "No pool games loaded.")}</div>`}
 
     ${(s.graded && s.graded.length) ? `<h2>Graded</h2>
       <div>${s.graded.map(g => `
