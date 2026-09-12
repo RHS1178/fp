@@ -258,6 +258,7 @@ function render(){
           <div class="body">
             <div class="p">${esc(g.game)}</div>
             <div class="m">model ${esc(g.model_pick || "—")}${g.my_pick ? ` · yours ${esc(g.my_pick)}` : " · yours not entered"}${g.line_delta ? ` · contest line ${num(g.line_delta, true)}` : ""}</div>
+            ${publicLine(g)}
           </div>
           <div class="e">${verdict(g.result)}</div>
         </div>`).join("")}</div>`
